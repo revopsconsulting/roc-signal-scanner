@@ -177,7 +177,7 @@ async function loadCompanies() {
       }],
       properties: ['name','domain','website','industry','city','last_signal_scan_date','outreach_priority'],
       sorts: [{ propertyName: 'last_signal_scan_date', direction: 'ASCENDING' }],
-      limit: 50
+      limit: parseInt(document.getElementById('scan-count').value)
     };
 
     const res = await fetch(WORKER, {
@@ -315,6 +315,11 @@ Return ONLY JSON in <result></result> tags:
   "suggested_angle": "Post Series A with a new VP Sales in seat — the RevOps infrastructure question will hit fast.",
   "outreach_priority": "High"
 }
+
+signal_types MUST only contain values from this exact list — no other values are permitted:
+Funding Round, Senior Hire, News Coverage, LinkedIn Post, Product Launch, Expansion, Business Growth, Award / Accelerator, Partnership, Co-founder Addition, Other, No Signal
+
+Map any signal to the closest option from that list. Never invent new values.
 </result>
 
 If no signals: signal_found: false, signal_types: ["No Signal"], outreach_priority: "Skip".`;
