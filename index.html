@@ -93,6 +93,15 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);min-height:1
   </div>
   <div class="controls">
     <button class="btn" id="btn-load" onclick="loadCompanies()" disabled>Load companies</button>
+    <div style="display:flex;align-items:center;gap:6px">
+      <span style="font-size:13px;color:var(--muted)">Scan</span>
+      <select id="scan-count" style="font-family:var(--sans);font-size:13px;color:var(--text);background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:6px 8px;outline:none;cursor:pointer">
+        <option value="10">10</option>
+        <option value="25">25</option>
+        <option value="50" selected>50</option>
+        <option value="100">100</option>
+      </select>
+    </div>
     <button class="btn btn-primary" id="btn-scan" onclick="startScan()" disabled>Run scan</button>
     <button class="btn btn-danger" id="btn-stop" onclick="stopScan()" style="display:none">Stop</button>
   </div>
