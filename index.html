@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ROC Signal Scanner</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --teal:#1D9E75;--teal-light:#E1F5EE;--teal-dark:#0F6E56;
+  --text:#1a1a18;--muted:#888780;--border:#e0ded6;--bg:#fafaf8;--surface:#fff;
+  --sans:'DM Sans',sans-serif;--mono:'DM Mono',monospace;
+  --red:#FCEBEB;--red-t:#791F1F;--amber:#FAEEDA;--amber-t:#633806;
+  --green:#EAF3DE;--green-t:#3B6D11;--blue:#E6F1FB;--blue-t:#185FA5;
+}
+body{font-family:var(--sans);background:var(--bg);color:var(--text);min-height:100vh;display:flex;flex-direction:column}
+
+/* TOP BAR */
+.topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:12px 24px;display:flex;align-items:center;gap:16px;flex-shrink:0}
+.logo{font-family:var(--mono);font-size:12px;font-weight:500;letter-spacing:.08em;color:var(--teal);white-space:nowrap}
+.controls{display:flex;gap:8px;margin-left:auto}
+.btn{font-family:var(--sans);font-size:13px;font-weight:500;padding:7px 16px;border-radius:6px;cursor:pointer;transition:all .15s;border:1px solid var(--border);background:var(--surface);color:var(--text)}
+.btn:hover{background:var(--bg)}
+.btn-primary{background:var(--teal);border-color:var(--teal);color:#fff}
+.btn-primary:hover{background:var(--teal-dark)}
+.btn-primary:disabled,.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn-danger{border-color:#F7C1C1;color:var(--red-t)}
+.btn-danger:hover{background:var(--red)}
+
+/* STATS */
+.statsbar{background:var(--surface);border-bottom:1px solid var(--border);padding:10px 24px;display:flex;align-items:center;gap:24px;flex-shrink:0}
+.stat{display:flex;align-items:center;gap:8px}
+.stat-val{font-size:18px;font-weight:500;font-family:var(--mono)}
+.stat-label{font-size:12px;color:var(--muted)}
+.stat-divider{width:1px;height:24px;background:var(--border)}
+.progress-wrap{flex:1;max-width:300px;height:4px;background:var(--border);border-radius:2px;overflow:hidden}
+.progress-bar{height:100%;background:var(--teal);border-radius:2px;transition:width .3s;width:0}
+.status-msg{font-size:12px;color:var(--muted);margin-left:8px;font-family:var(--mono)}
+
+/* MAIN */
+.main{flex:1;padding:24px;overflow-y:auto}
+.empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;min-height:300px;color:var(--muted);font-size:13px}
+.empty-icon{width:44px;height:44px;border-radius:50%;background:var(--teal-light);display:flex;align-items:center;justify-content:center;font-size:20px}
+
+/* COMPANY CARDS */
+.company-list{display:flex;flex-direction:column;gap:8px;max-width:900px}
+.company-card{background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:hidden;transition:border-color .15s}
+.company-card.high{border-color:#5DCAA5}
+.company-card.scanning{border-color:var(--teal);opacity:.9}
+.card-main{padding:14px 16px;display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center;cursor:pointer}
+.card-left{display:flex;align-items:center;gap:12px;min-width:0}
+.status-dot{width:8px;height:8px;border-radius:50%;background:var(--border);flex-shrink:0}
+.status-dot.pending{background:var(--border)}
+.status-dot.scanning{background:var(--teal);animation:pulse .8s infinite}
+.status-dot.done{background:var(--teal)}
+.status-dot.error{background:#c0392b}
+.status-dot.skip{background:var(--border)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.company-name{font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.company-meta{font-size:12px;color:var(--muted);white-space:nowrap}
+.card-right{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.priority-badge{font-size:11px;font-weight:500;padding:3px 10px;border-radius:5px;white-space:nowrap}
+.priority-High{background:var(--red);color:var(--red-t)}
+.priority-Medium{background:var(--amber);color:var(--amber-t)}
+.priority-Low{background:var(--green);color:var(--green-t)}
+.priority-Skip{background:#F1EFE8;color:#666}
+.signal-tags{display:flex;gap:4px;flex-wrap:wrap}
+.signal-tag{font-size:10px;padding:2px 7px;border-radius:4px;background:var(--blue);color:var(--blue-t)}
+.expand-icon{font-size:12px;color:var(--muted);transition:transform .15s}
+.expand-icon.open{transform:rotate(180deg)}
+.card-detail{padding:0 16px 14px 36px;font-size:13px;line-height:1.6;display:none;border-top:1px solid var(--border)}
+.card-detail.open{display:block}
+.detail-section{margin-top:12px}
+.detail-label{font-size:11px;font-weight:500;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
+.detail-text{color:var(--text)}
+.hs-status{font-size:11px;margin-top:10px;padding:6px 10px;border-radius:5px;background:var(--bg);color:var(--muted);font-family:var(--mono)}
+.hs-status.ok{background:var(--green);color:var(--green-t)}
+.hs-status.fail{background:var(--red);color:var(--red-t)}
+
+/* SPINNER */
+.spinner{display:inline-block;width:13px;height:13px;border:2px solid var(--border);border-top-color:var(--teal);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo">ROC / Signal Scanner</div>
+  <div style="display:flex;align-items:center;gap:8px;flex:1;max-width:420px;margin-left:16px">
+    <input id="hs-token" type="password" placeholder="Paste HubSpot Service Key..." style="flex:1;font-family:var(--sans);font-size:13px;color:var(--text);background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:7px 10px;outline:none" oninput="onTokenInput()">
+    <span id="token-indicator" style="font-size:11px;color:var(--muted);white-space:nowrap"></span>
+  </div>
+  <div class="controls">
+    <button class="btn" id="btn-load" onclick="loadCompanies()" disabled>Load companies</button>
+    <button class="btn btn-primary" id="btn-scan" onclick="startScan()" disabled>Run scan</button>
+    <button class="btn btn-danger" id="btn-stop" onclick="stopScan()" style="display:none">Stop</button>
+  </div>
+</div>
+
+<div class="statsbar">
+  <div class="stat"><div class="stat-val" id="s-loaded">0</div><div class="stat-label">loaded</div></div>
+  <div class="stat-divider"></div>
+  <div class="stat"><div class="stat-val" id="s-scanned">0</div><div class="stat-label">scanned</div></div>
+  <div class="stat-divider"></div>
+  <div class="stat"><div class="stat-val" id="s-high" style="color:var(--red-t)">0</div><div class="stat-label">high priority</div></div>
+  <div class="stat-divider"></div>
+  <div class="stat"><div class="stat-val" id="s-medium" style="color:var(--amber-t)">0</div><div class="stat-label">medium priority</div></div>
+  <div class="stat-divider"></div>
+  <div class="stat"><div class="stat-val" id="s-hs">0</div><div class="stat-label">hs updated</div></div>
+  <div class="stat-divider"></div>
+  <div class="progress-wrap"><div class="progress-bar" id="progress-bar"></div></div>
+  <div class="status-msg" id="status-msg">Ready</div>
+</div>
+
+<div class="main">
+  <div class="empty-state" id="empty-state">
+    <div class="empty-icon">⟳</div>
+    <span>Load companies to begin</span>
+  </div>
+  <div class="company-list" id="company-list" style="display:none"></div>
+</div>
+
+<script>
+const API = 'https://api.anthropic.com/v1/messages';
+const HS_API = 'https://api.hubapi.com';
+const HS_MCP = {type:'url',url:'https://mcp.hubspot.com/anthropic',name:'hubspot'};
+
+let companies = [];
+let props = {};
+let scanning = false;
+let stopRequested = false;
+let scanned = 0, highCount = 0, medCount = 0, hsUpdated = 0;
+
+function getToken() { return document.getElementById('hs-token').value.trim(); }
+
+function onTokenInput() {
+  const t = getToken();
+  const valid = t.startsWith('pat-') && t.length > 20;
+  document.getElementById('token-indicator').textContent = valid ? '✓ Token set' : '';
+  document.getElementById('token-indicator').style.color = valid ? 'var(--teal)' : 'var(--muted)';
+  document.getElementById('btn-load').disabled = !valid;
+}
+
+// ---- LOAD COMPANIES ----
+async function loadCompanies() {
+  setStatus('Finding properties and loading companies...');
+  document.getElementById('btn-load').disabled = true;
+  document.getElementById('btn-scan').disabled = true;
+  document.getElementById('empty-state').style.display = 'none';
+  document.getElementById('company-list').style.display = 'flex';
+  document.getElementById('company-list').innerHTML = '<div style="padding:20px;color:var(--muted);font-size:13px;display:flex;align-items:center;gap:10px"><div class="spinner"></div>Connecting to HubSpot...</div>';
+
+  const system = `You are a HubSpot data assistant. Return ONLY JSON inside <result></result> tags. No other text.
+
+Steps:
+1. Use search_properties to find COMPANY property API names for: target account, last signal scan date, signal found, signal type, signal summary, suggested outreach angle, outreach priority. Search with queries: "target", "signal", "scan", "outreach".
+2. Use search_crm_objects to get up to 50 COMPANY records where target account property = true. Sort by last signal scan date ascending (nulls first). Include properties: name, domain, industry, website, city, the last_signal_scan_date property, and the outreach_priority property.
+
+Return:
+<result>
+{
+  "props": {
+    "target_account": "api_name",
+    "last_scan_date": "api_name",
+    "signal_found": "api_name",
+    "signal_type": "api_name",
+    "signal_summary": "api_name",
+    "suggested_angle": "api_name",
+    "outreach_priority": "api_name"
+  },
+  "companies": [
+    {"id":"123","name":"Acme","domain":"acme.com","sector":"SaaS","city":"London","last_scan_date":null,"current_priority":null}
+  ]
+}
+</result>`;
+
+  try {
+    const res = await fetch(API, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        model:'claude-sonnet-4-20250514',
+        max_tokens:4000,
+        system,
+        messages:[{role:'user',content:'Load target account companies from HubSpot for signal scanning.'}],
+        mcp_servers:[HS_MCP]
+      })
+    });
+
+    const d = await res.json();
+    const raw = d.content.filter(b=>b.type==='text').map(b=>b.text).join('');
+    const m = raw.match(/<result>([\s\S]*?)<\/result>/);
+    if (!m) throw new Error('No structured data returned. Response: ' + raw.substring(0,200));
+
+    const data = JSON.parse(m[1].trim());
+    props = data.props;
+    companies = data.companies || [];
+
+    document.getElementById('s-loaded').textContent = companies.length;
+    renderCompanyList();
+    document.getElementById('btn-load').disabled = false;
+    document.getElementById('btn-scan').disabled = companies.length === 0;
+    setStatus(`${companies.length} companies loaded`);
+  } catch(e) {
+    document.getElementById('company-list').innerHTML = `<div style="padding:16px;background:var(--red);color:var(--red-t);border-radius:8px;font-size:13px">Failed to load: ${e.message}</div>`;
+    document.getElementById('btn-load').disabled = false;
+    setStatus('Load failed');
+  }
+}
+
+function renderCompanyList() {
+  const list = document.getElementById('company-list');
+  list.innerHTML = companies.map((c,i) => `
+    <div class="company-card" id="card-${c.id}" data-i="${i}">
+      <div class="card-main" onclick="toggleDetail('${c.id}')">
+        <div class="card-left">
+          <div class="status-dot pending" id="dot-${c.id}"></div>
+          <div>
+            <div class="company-name">${c.name}</div>
+            <div class="company-meta">${[c.domain||'',c.sector||'',c.city||''].filter(Boolean).join(' · ')}</div>
+          </div>
+        </div>
+        <div class="card-right">
+          <div class="signal-tags" id="tags-${c.id}"></div>
+          <div id="priority-${c.id}"></div>
+          <span class="expand-icon" id="expand-${c.id}">▾</span>
+        </div>
+      </div>
+      <div class="card-detail" id="detail-${c.id}">
+        <div class="detail-section" id="content-${c.id}">
+          <span style="color:var(--muted);font-size:13px">Not yet scanned</span>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+function toggleDetail(id) {
+  const d = document.getElementById(`detail-${id}`);
+  const e = document.getElementById(`expand-${id}`);
+  d.classList.toggle('open');
+  e.classList.toggle('open');
+}
+
+// ---- SCAN ----
+async function startScan() {
+  if (scanning) return;
+  scanning = true;
+  stopRequested = false;
+  scanned = 0; highCount = 0; medCount = 0; hsUpdated = 0;
+  document.getElementById('btn-scan').disabled = true;
+  document.getElementById('btn-stop').style.display = 'inline-block';
+  document.getElementById('btn-load').disabled = true;
+  updateStats();
+
+  // Process in batches of 3 concurrent
+  const pending = companies.filter(c => {
+    const card = document.getElementById(`card-${c.id}`);
+    return card && !card.dataset.done;
+  });
+
+  const BATCH = 3;
+  for (let i = 0; i < pending.length; i += BATCH) {
+    if (stopRequested) break;
+    const batch = pending.slice(i, i + BATCH);
+    await Promise.all(batch.map(c => scanCompany(c)));
+    const progress = Math.round((Math.min(i + BATCH, pending.length) / pending.length) * 100);
+    document.getElementById('progress-bar').style.width = progress + '%';
+  }
+
+  scanning = false;
+  document.getElementById('btn-stop').style.display = 'none';
+  document.getElementById('btn-scan').disabled = false;
+  document.getElementById('btn-load').disabled = false;
+  setStatus(stopRequested ? 'Scan stopped' : 'Scan complete');
+}
+
+function stopScan() {
+  stopRequested = true;
+  setStatus('Stopping after current batch...');
+}
+
+async function scanCompany(company) {
+  const dot = document.getElementById(`dot-${company.id}`);
+  const card = document.getElementById(`card-${company.id}`);
+  if (dot) { dot.className = 'status-dot scanning'; }
+  if (card) { card.classList.add('scanning'); }
+  setStatus(`Scanning ${company.name}...`);
+
+  const scanSystem = `You are a signal intelligence assistant for ROC, a fractional RevOps consultancy targeting B2B tech startups Seed to Series C in the UK.
+
+Use web_search to find outreach signals for the given company. Run 2-3 searches covering: recent funding, senior GTM hires (CRO/VP Sales/CMO/Head of Revenue), news coverage, product launches, expansions. Focus on the last 90 days.
+
+Outreach priority guide (be generous — surface more rather than less):
+- High: Any funding round in last 90 days, any senior hire at VP+ or C-level, major product launch, significant expansion or new market entry
+- Medium: News coverage in trade or tech press, mid-level commercial hire (Head of Sales, Sales Director), LinkedIn activity showing growth signals, any company announcement
+- Low: Minimal activity, older news, nothing clearly actionable
+- Skip: Absolutely nothing found after searching. Default to Low rather than Skip if in doubt — err on the side of surfacing.
+
+Return ONLY JSON in <result></result> tags:
+<result>
+{
+  "signal_found": true,
+  "signal_types": ["Funding Round","Senior Hire"],
+  "signal_summary": "Raised £5m Series A in March 2025. Also hired a VP Sales from HubSpot in April.",
+  "suggested_angle": "Post Series A with a new VP Sales in seat — the RevOps infrastructure question will hit fast.",
+  "outreach_priority": "High"
+}
+</result>
+
+If no signals: signal_found: false, signal_types: ["No Signal"], outreach_priority: "Skip".`;
+
+  try {
+    const res = await fetch(API, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        model:'claude-sonnet-4-20250514',
+        max_tokens:1500,
+        system: scanSystem,
+        messages:[{role:'user',content:`Scan for outreach signals: ${company.name}${company.domain ? ', '+company.domain : ''}${company.sector ? ', '+company.sector : ''}${company.city ? ', '+company.city : ''}`}],
+        tools:[{type:'web_search_20250305',name:'web_search'}]
+      })
+    });
+
+    const d = await res.json();
+    const raw = d.content.filter(b=>b.type==='text').map(b=>b.text).join('');
+    const m = raw.match(/<result>([\s\S]*?)<\/result>/);
+    if (!m) throw new Error('No result returned');
+
+    const result = JSON.parse(m[1].trim());
+    updateCardWithResult(company, result);
+    await writeToHubSpot(company, result);
+
+  } catch(e) {
+    if (dot) dot.className = 'status-dot error';
+    if (card) card.classList.remove('scanning');
+    const content = document.getElementById(`content-${company.id}`);
+    if (content) content.innerHTML = `<span style="color:var(--red-t);font-size:13px">Scan error: ${e.message}</span>`;
+  }
+
+  scanned++;
+  document.getElementById('s-scanned').textContent = scanned;
+}
+
+function updateCardWithResult(company, result) {
+  const dot = document.getElementById(`dot-${company.id}`);
+  const card = document.getElementById(`card-${company.id}`);
+  const tags = document.getElementById(`tags-${company.id}`);
+  const priority = document.getElementById(`priority-${company.id}`);
+  const content = document.getElementById(`content-${company.id}`);
+
+  if (dot) dot.className = result.outreach_priority === 'Skip' ? 'status-dot skip' : 'status-dot done';
+  if (card) {
+    card.classList.remove('scanning');
+    card.dataset.done = '1';
+    if (result.outreach_priority === 'High') { card.classList.add('high'); highCount++; document.getElementById('s-high').textContent = highCount; }
+    if (result.outreach_priority === 'Medium') { medCount++; document.getElementById('s-medium').textContent = medCount; }
+  }
+
+  if (tags && result.signal_types) {
+    tags.innerHTML = result.signal_types.filter(t=>t!=='No Signal').map(t=>`<span class="signal-tag">${t}</span>`).join('');
+  }
+
+  if (priority && result.outreach_priority) {
+    priority.innerHTML = `<span class="priority-badge priority-${result.outreach_priority}">${result.outreach_priority}</span>`;
+  }
+
+  if (content) {
+    if (!result.signal_found) {
+      content.innerHTML = '<span style="color:var(--muted);font-size:13px">No signals found in the last 90 days.</span>';
+    } else {
+      content.innerHTML = `
+        <div class="detail-section">
+          <div class="detail-label">Signal summary</div>
+          <div class="detail-text">${result.signal_summary || ''}</div>
+        </div>
+        <div class="detail-section">
+          <div class="detail-label">Suggested angle</div>
+          <div class="detail-text">${result.suggested_angle || ''}</div>
+        </div>
+        <div id="hs-status-${company.id}" class="hs-status">Writing to HubSpot...</div>`;
+      // Auto-expand high priority
+      if (result.outreach_priority === 'High') {
+        document.getElementById(`detail-${company.id}`).classList.add('open');
+        document.getElementById(`expand-${company.id}`).classList.add('open');
+      }
+    }
+  }
+}
+
+async function writeToHubSpot(company, result) {
+  const statusEl = document.getElementById(`hs-status-${company.id}`);
+  if (!statusEl) return;
+
+  const today = new Date().toISOString().split('T')[0];
+  const token = getToken();
+
+  const properties = {
+    [props.signal_found || 'signal_found']: result.signal_found ? 'true' : 'false',
+    [props.signal_type || 'signal_type']: (result.signal_types || []).join(';'),
+    [props.signal_summary || 'signal_summary']: result.signal_summary || '',
+    [props.suggested_angle || 'suggested_angle']: result.suggested_angle || '',
+    [props.outreach_priority || 'outreach_priority']: result.outreach_priority || '',
+    [props.last_scan_date || 'last_signal_scan_date']: today
+  };
+
+  try {
+    const res = await fetch(`${HS_API}/crm/v3/objects/companies/${company.id}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ properties })
+    });
+
+    if (res.ok) {
+      statusEl.className = 'hs-status ok';
+      statusEl.textContent = 'HubSpot updated';
+      hsUpdated++;
+      document.getElementById('s-hs').textContent = hsUpdated;
+    } else {
+      const err = await res.json().catch(() => ({}));
+      statusEl.className = 'hs-status fail';
+      statusEl.textContent = 'HubSpot write failed: ' + (err.message || res.status);
+    }
+  } catch(e) {
+    if (statusEl) { statusEl.className = 'hs-status fail'; statusEl.textContent = 'HubSpot write error: ' + e.message; }
+  }
+}
+
+function updateStats() {
+  document.getElementById('s-scanned').textContent = scanned;
+  document.getElementById('s-high').textContent = highCount;
+  document.getElementById('s-medium').textContent = medCount;
+  document.getElementById('s-hs').textContent = hsUpdated;
+}
+
+function setStatus(msg) {
+  document.getElementById('status-msg').textContent = msg;
+}
+</script>
+</body>
+</html>
