@@ -172,7 +172,7 @@ async function loadCompanies() {
         filters: [{
           propertyName: 'hs_is_target_account',
           operator: 'EQ',
-          value: 'true'
+          value: true
         }]
       }],
       properties: ['name','domain','website','industry','city','last_signal_scan_date','outreach_priority'],
