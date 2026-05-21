@@ -156,7 +156,7 @@ async function loadCompanies() {
 
   // Hard-coded property names based on Signal Intelligence group
   props = {
-    target_account: 'target_account',
+    target_account: 'hs_is_target_account',
     last_scan_date: 'last_signal_scan_date',
     signal_found: 'signal_found',
     signal_type: 'signal_type',
@@ -170,7 +170,7 @@ async function loadCompanies() {
     const searchBody = {
       filterGroups: [{
         filters: [{
-          propertyName: 'target_account',
+          propertyName: 'hs_is_target_account',
           operator: 'EQ',
           value: 'true'
         }]
