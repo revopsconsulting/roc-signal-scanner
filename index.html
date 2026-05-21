@@ -425,7 +425,6 @@ function updateCardWithResult(company, result) {
 
 async function writeToHubSpot(company, result) {
   const statusEl = document.getElementById(`hs-status-${company.id}`);
-  if (!statusEl) return;
 
   const today = new Date().toISOString().split('T')[0];
   const token = getToken();
@@ -451,14 +450,12 @@ async function writeToHubSpot(company, result) {
     });
 
     if (res.ok) {
-      statusEl.className = 'hs-status ok';
-      statusEl.textContent = 'HubSpot updated';
+      if (statusEl) { statusEl.className = 'hs-status ok'; statusEl.textContent = 'HubSpot updated'; }
       hsUpdated++;
       document.getElementById('s-hs').textContent = hsUpdated;
     } else {
       const err = await res.json().catch(() => ({}));
-      statusEl.className = 'hs-status fail';
-      statusEl.textContent = 'HubSpot write failed: ' + (err.message || res.status);
+      if (statusEl) { statusEl.className = 'hs-status fail'; statusEl.textContent = 'HubSpot write failed: ' + (err.message || res.status); }
     }
   } catch(e) {
     if (statusEl) { statusEl.className = 'hs-status fail'; statusEl.textContent = 'HubSpot write error: ' + e.message; }
