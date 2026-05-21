@@ -144,58 +144,65 @@ function onTokenInput() {
 
 // ---- LOAD COMPANIES ----
 async function loadCompanies() {
-  setStatus('Finding properties and loading companies...');
+  setStatus('Connecting to HubSpot...');
   document.getElementById('btn-load').disabled = true;
   document.getElementById('btn-scan').disabled = true;
   document.getElementById('empty-state').style.display = 'none';
   document.getElementById('company-list').style.display = 'flex';
   document.getElementById('company-list').innerHTML = '<div style="padding:20px;color:var(--muted);font-size:13px;display:flex;align-items:center;gap:10px"><div class="spinner"></div>Connecting to HubSpot...</div>';
 
-  const system = `You are a HubSpot data assistant. Return ONLY JSON inside <result></result> tags. No other text.
+  const token = getToken();
 
-Steps:
-1. Use search_properties to find COMPANY property API names for: target account, last signal scan date, signal found, signal type, signal summary, suggested outreach angle, outreach priority. Search with queries: "target", "signal", "scan", "outreach".
-2. Use search_crm_objects to get up to 50 COMPANY records where target account property = true. Sort by last signal scan date ascending (nulls first). Include properties: name, domain, industry, website, city, the last_signal_scan_date property, and the outreach_priority property.
-
-Return:
-<result>
-{
-  "props": {
-    "target_account": "api_name",
-    "last_scan_date": "api_name",
-    "signal_found": "api_name",
-    "signal_type": "api_name",
-    "signal_summary": "api_name",
-    "suggested_angle": "api_name",
-    "outreach_priority": "api_name"
-  },
-  "companies": [
-    {"id":"123","name":"Acme","domain":"acme.com","sector":"SaaS","city":"London","last_scan_date":null,"current_priority":null}
-  ]
-}
-</result>`;
+  // Hard-coded property names based on Signal Intelligence group
+  props = {
+    target_account: 'target_account',
+    last_scan_date: 'last_signal_scan_date',
+    signal_found: 'signal_found',
+    signal_type: 'signal_type',
+    signal_summary: 'signal_summary',
+    suggested_angle: 'suggested_outreach_angle',
+    outreach_priority: 'outreach_priority'
+  };
 
   try {
-    const res = await fetch(API, {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({
-        model:'claude-sonnet-4-20250514',
-        max_tokens:4000,
-        system,
-        messages:[{role:'user',content:'Load target account companies from HubSpot for signal scanning.'}],
-        mcp_servers:[HS_MCP]
-      })
+    // Search for Target Account companies, sorted by last_signal_scan_date ascending (nulls first)
+    const searchBody = {
+      filterGroups: [{
+        filters: [{
+          propertyName: 'target_account',
+          operator: 'EQ',
+          value: 'true'
+        }]
+      }],
+      properties: ['name','domain','website','industry','city','last_signal_scan_date','outreach_priority'],
+      sorts: [{ propertyName: 'last_signal_scan_date', direction: 'ASCENDING' }],
+      limit: 50
+    };
+
+    const res = await fetch(`${HS_API}/crm/v3/objects/companies/search`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(searchBody)
     });
 
-    const d = await res.json();
-    const raw = d.content.filter(b=>b.type==='text').map(b=>b.text).join('');
-    const m = raw.match(/<result>([\s\S]*?)<\/result>/);
-    if (!m) throw new Error('No structured data returned. Response: ' + raw.substring(0,200));
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || `HubSpot returned ${res.status}`);
+    }
 
-    const data = JSON.parse(m[1].trim());
-    props = data.props;
-    companies = data.companies || [];
+    const data = await res.json();
+    companies = (data.results || []).map(c => ({
+      id: c.id,
+      name: c.properties.name || 'Unknown',
+      domain: c.properties.domain || c.properties.website || '',
+      sector: c.properties.industry || '',
+      city: c.properties.city || '',
+      last_scan_date: c.properties.last_signal_scan_date || null,
+      current_priority: c.properties.outreach_priority || null
+    }));
 
     document.getElementById('s-loaded').textContent = companies.length;
     renderCompanyList();
