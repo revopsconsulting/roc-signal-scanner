@@ -122,7 +122,8 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);min-height:1
 </div>
 
 <script>
-const API = 'https://roc-signal-scanner.revopsconsulting.workers.dev';
+const WORKER = 'https://roc-signal-scanner.revopsconsulting.workers.dev';
+const API = WORKER;
 const HS_API = 'https://api.hubapi.com';
 const HS_MCP = {type:'url',url:'https://mcp.hubspot.com/anthropic',name:'hubspot'};
 
@@ -179,11 +180,12 @@ async function loadCompanies() {
       limit: 50
     };
 
-    const res = await fetch(`${HS_API}/crm/v3/objects/companies/search`, {
+    const res = await fetch(WORKER, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
+        'X-Target-URL': `${HS_API}/crm/v3/objects/companies/search`,
+        'X-HS-Token': token
       },
       body: JSON.stringify(searchBody)
     });
@@ -413,11 +415,12 @@ async function writeToHubSpot(company, result) {
   };
 
   try {
-    const res = await fetch(`${HS_API}/crm/v3/objects/companies/${company.id}`, {
+    const res = await fetch(WORKER, {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
+        'X-Target-URL': `${HS_API}/crm/v3/objects/companies/${company.id}`,
+        'X-HS-Token': token
       },
       body: JSON.stringify({ properties })
     });
